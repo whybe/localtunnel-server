@@ -52,7 +52,21 @@ function maybe_bounce(req, res, sock, head) {
         return false;
     }
 
-    const client = clients[subdomain];
+    var client_id = subdomain;
+    var client = clients[client_id];
+
+    if(!client || subdomain.indexOf('.') !== -1) {
+        var subdmoain_split = subdomain.split('.');
+
+        for(var i = 0; i <= subdmoain_split.length; i++) {
+            client_id = subdmoain_split.slice(0, i).join('.');
+            client = clients[client_id];
+
+            if(client) {
+                break;
+            }
+        }
+    }
 
     // no such subdomain
     // we use 502 error to the client to signify we can't service the request
@@ -272,7 +286,7 @@ module.exports = function(opt) {
         const req_id = req.params.req_id;
 
         // limit requested hostnames to 63 characters
-        if (! /^[a-z0-9]{4,63}$/.test(req_id)) {
+        if (! /^[a-z0-9\.]{4,63}$/.test(req_id)) {
             const err = new Error('Invalid subdomain. Subdomains must be lowercase and between 4 and 63 alphanumeric characters.');
             err.statusCode = 403;
             return next(err);
@@ -302,7 +316,8 @@ module.exports = function(opt) {
 
     server.on('request', function(req, res) {
         debug('request %s', req.url);
-        if (maybe_bounce(req, res, null, null)) {
+        var configuredHost = opt.host;
+        if (configuredHost !== req.headers.host && maybe_bounce(req, res, null, null)) {
             return;
         };
 
